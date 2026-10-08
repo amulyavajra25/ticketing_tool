@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard - Helpdesk</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-950 text-gray-100 min-h-screen p-6">
+    <div class="max-w-6xl mx-auto space-y-6">
+        
+        <!-- Top Navbar Header -->
+        <div class="flex justify-between items-center bg-gray-900 border border-gray-800 p-4 rounded-lg shadow">
+            <div>
+                <h1 class="text-xl font-bold text-blue-400">Helpdesk Dashboard</h1>
+                <p class="text-xs text-gray-400">Logged in as: <span class="text-white font-semibold">{{ session.username }}</span> (<span class="text-blue-400">{{ session.role }}</span>)</p>
+            </div>
+            <a href="{{ url_for('logout') }}" class="bg-red-600/20 border border-red-500 text-red-300 px-4 py-2 rounded text-sm hover:bg-red-600 hover:text-white transition">Logout</a>
+        </div>
+
+        <!-- Only Clients Can See the Raise Ticket Form -->
+        {% if session.role == 'CLIENT' %}
+        <div class="bg-gray-900 border border-gray-800 p-6 rounded-lg shadow space-y-4">
+            <h2 class="text-lg font-semibold text-blue-400">+ Raise New Ticket</h2>
+            <form action="{{ url_for('create_ticket') }}" method="POST" class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">Subject Title</label>
+                        <input type="text" name="title" placeholder="e.g. VPN connection error" required class="w-full bg-gray-950 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">Category</label>
+                        <select name="category" class="w-full bg-gray-950 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+                            <option value="Incident">Incident</option>
+                            <option value="Service Request">Service Request</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">Priority Level</label>
+                        <select name="priority" class="w-full bg-gray-950 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+                            <option value="LOW">Low</option>
+                            <option value="MEDIUM" selected>Medium</option>
+                            <option value="HIGH">High</option>
+                            <option value="URGENT">Urgent</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-400 mb-1">Detailed Description</label>
+                    <textarea name="description" rows="2" placeholder="Describe your issue or request..." required class="w-full bg-gray-950 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"></textarea>
+                </div>
+                <button type="submit" class="bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-5 py-2 rounded transition">Submit Ticket</button>
+            </form>
+        </div>
+        {% endif %}
+
+        <!-- Tickets Register Table -->
+        <div class="bg-gray-900 border border-gray-800 rounded-lg shadow overflow-hidden">
+            <div class="p-4 border-b border-gray-800">
+                <h2 class="text-lg font-semibold text-gray-200">TICKETS REGISTER</h2>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-gray-950 text-gray-400 text-xs uppercase border-b border-gray-800">
+                            <th class="p-3">Ticket ID</th>
+                            <th class="p-3">Subject & Category</th>
+                            <th class="p-3">Priority</th>
+                            <th class="p-3">Status</th>
+                            <th class="p-3">Raised By</th>
+                            <th class="p-3">Assigned Employee</th>
+                            <th class="p-3">Actions / Controls</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-800 text-sm">
+                        {% for ticket in tickets %}
+                        <tr class="hover:bg-gray-950/50">
+                            <td class="p-3 font-mono text-blue-400">TK-{{ ticket.ticket_id }}</td>
+                            <td class="p-3">
+                                <div class="font-semibold text-white">{{ ticket.title }}</div>
+                                <div class="text-xs text-gray-400">{{ ticket.category }}</div>
+                            </td>
+                            <td class="p-3">
+                                <span class="px-2 py-1 text-xs rounded font-semibold 
+                                    {% if ticket.priority == 'URGENT' %}bg-red-500/20 text-red-400 border border-red-500
+                                    {% elif ticket.priority == 'HIGH' %}bg-orange-500/20 text-orange-400 border border-orange-500
+                                    {% elif ticket.priority == 'MEDIUM' %}bg-yellow-500/20 text-yellow-400 border border-yellow-500
+                                    {% else %}bg-green-500/20 text-green-400 border border-green-500{% endif %}">
+                                    {{ ticket.priority }}
+                                </span>
+                            </td>
+                            <td class="p-3">
+                                <span class="px-2 py-1 text-xs rounded font-semibold
+                                    {% if ticket.status == 'OPEN' %}bg-blue-500/20 text-blue-400 border border-blue-500
+                                    {% elif ticket.status == 'ASSIGNED' %}bg-purple-500/20 text-purple-400 border border-purple-500
+                                    {% elif ticket.status == 'WORK_IN_PROGRESS' %}bg-yellow-500/20 text-yellow-400 border border-yellow-500
+                                    {% elif ticket.status == 'RESOLVED' %}bg-green-500/20 text-green-400 border border-green-500
+                                    {% else %}bg-gray-700 text-gray-300 border border-gray-600{% endif %}">
+                                    {{ ticket.status }}
+                                </span>
+                            </td>
+                            <td class="p-3 text-gray-300">{{ ticket.raised_by }}</td>
+                            <td class="p-3">
+                                {% if session.role == 'ADMIN' %}
+                                    <form action="{{ url_for('assign_ticket', ticket_id=ticket.ticket_id) }}" method="POST" class="flex items-center space-x-2">
+                                        <select name="employee_id" class="bg-gray-950 border border-gray-700 text-xs rounded px-2 py-1 text-white focus:outline-none">
+                                            <option value="">Unassigned</option>
+                                            {% for emp in employees %}
+                                                <option value="{{ emp.user_id }}" {% if ticket.assigned_to == emp.user_id %}selected{% endif %}>{{ emp.username }}</option>
+                                            {% endfor %}
+                                        </select>
+                                        <button type="submit" class="bg-blue-600 hover:bg-blue-500 text-xs px-2 py-1 rounded text-white">Assign</button>
+                                    </form>
+                                {% else %}
+                                    <span class="text-gray-300">{{ ticket.assigned_employee }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="p-3">
+                                <form action="{{ url_for('update_status', ticket_id=ticket.ticket_id) }}" method="POST" class="flex items-center space-x-2">
+                                    <select name="status" class="bg-gray-950 border border-gray-700 text-xs rounded px-2 py-1 text-white focus:outline-none">
+                                        {% if session.role != 'EMPLOYEE' %}
+                                            <option value="OPEN" {% if ticket.status == 'OPEN' %}selected{% endif %}>Open</option>
+                                        {% endif %}
+                                        <option value="ASSIGNED" {% if ticket.status == 'ASSIGNED' %}selected{% endif %}>Assigned</option>
+                                        <option value="WORK_IN_PROGRESS" {% if ticket.status == 'WORK_IN_PROGRESS' %}selected{% endif %}>Work In Progress</option>
+                                        <option value="RESOLVED" {% if ticket.status == 'RESOLVED' %}selected{% endif %}>Resolved</option>
+                                        {% if session.role != 'EMPLOYEE' %}
+                                            <option value="CLOSED" {% if ticket.status == 'CLOSED' %}selected{% endif %}>Closed</option>
+                                        {% endif %}
+                                    </select>
+                                    <button type="submit" class="bg-gray-800 hover:bg-gray-700 text-xs px-2.5 py-1 rounded border border-gray-700 text-white transition">Update</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="7" class="p-6 text-center text-gray-500">No tickets found.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+</body>
+</html>
