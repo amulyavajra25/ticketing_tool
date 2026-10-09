@@ -5,54 +5,57 @@ from flask import Flask, render_template, request, redirect, url_for, session
 DB_PATH = '/tmp/database.db' if os.environ.get('VERCEL') else 'database.db'
 
 app = Flask(__name__, template_folder='../templates', static_folder='../static')
-app.secret_key = 'ticketing_system_secret_key_vercel'
+app.secret_key = 'ticketing_system_secret_key_vercel_safe'
 
 def init_db():
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE,
-            password TEXT,
-            role TEXT
-        )
-    ''')
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS tickets (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT,
-            category TEXT,
-            priority TEXT,
-            status TEXT,
-            raised_by TEXT,
-            assigned_employee TEXT
-        )
-    ''')
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS ticket_messages (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            ticket_id INTEGER,
-            sender TEXT,
-            role TEXT,
-            message TEXT,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (ticket_id) REFERENCES tickets(id)
-        )
-    ''')
-    
-    demo_users = [
-        ('Client One', '1234', 'CLIENT'),
-        ('Amulya', '1234', 'EMPLOYEE'),
-        ('Admin', '1234', 'ADMINISTRATOR')
-    ]
-    for user, pwd, role in demo_users:
-        try:
-            cursor.execute('INSERT INTO users (username, password, role) VALUES (?, ?, ?)', (user, pwd, role))
-        except sqlite3.IntegrityError:
-            pass
-    conn.commit()
-    conn.close()
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE,
+                password TEXT,
+                role TEXT
+            )
+        ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS tickets (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT,
+                category TEXT,
+                priority TEXT,
+                status TEXT,
+                raised_by TEXT,
+                assigned_employee TEXT
+            )
+        ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS ticket_messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ticket_id INTEGER,
+                sender TEXT,
+                role TEXT,
+                message TEXT,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (ticket_id) REFERENCES tickets(id)
+            )
+        ''')
+        
+        demo_users = [
+            ('Client One', '1234', 'CLIENT'),
+            ('Amulya', '1234', 'EMPLOYEE'),
+            ('Admin', '1234', 'ADMINISTRATOR')
+        ]
+        for user, pwd, role in demo_users:
+            try:
+                cursor.execute('INSERT INTO users (username, password, role) VALUES (?, ?, ?)', (user, pwd, role))
+            except sqlite3.IntegrityError:
+                pass
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Database initialization error: {e}")
 
 init_db()
 
@@ -65,19 +68,23 @@ def login():
         password = request.form.get('password', '').strip()
         role = request.form.get('role', 'CLIENT').upper()
         
-        conn = sqlite3.connect(DB_PATH)
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-        user = cursor.execute('SELECT * FROM users WHERE username = ? AND password = ? AND role = ?', 
-                              (username, password, role)).fetchone()
-        conn.close()
-        
-        if user:
-            session['username'] = user['username']
-            session['role'] = user['role']
-            return redirect(url_for('dashboard'))
-        else:
-            error = "Invalid username, password, or role selection. Please try again."
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            user = cursor.execute('SELECT * FROM users WHERE username = ? AND password = ? AND role = ?', 
+                                  (username, password, role)).fetchone()
+            conn.close()
+            
+            if user:
+                session['username'] = user['username']
+                session['role'] = user['role']
+                return redirect(url_for('dashboard'))
+            else:
+                error = "Invalid username, password, or role selection."
+        except Exception as e:
+            error = f"Database error: {e}"
+            
     return render_template('login.html', error=error)
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -101,6 +108,8 @@ def register():
                 return redirect(url_for('login'))
             except sqlite3.IntegrityError:
                 error = "Username already exists. Choose a different username or login."
+            except Exception as e:
+                error = f"Error: {e}"
     return render_template('register.html', error=error)
 
 @app.route('/dashboard')
@@ -123,7 +132,6 @@ def dashboard():
     if role == 'ADMINISTRATOR':
         tickets = cursor.execute('SELECT * FROM tickets').fetchall()
     elif role == 'EMPLOYEE':
-        # Employees see tickets assigned to them or unassigned/open ones to review
         tickets = cursor.execute('''
             SELECT * FROM tickets 
             WHERE assigned_employee = ? OR assigned_employee = '' OR status = 'OPEN'
@@ -188,7 +196,6 @@ def ticket_detail(ticket_id):
         conn.close()
         return redirect(url_for('dashboard'))
 
-    # Security check: If user is an EMPLOYEE, they can only view/chat if assigned to them!
     if role == 'EMPLOYEE' and ticket['assigned_employee'] != username:
         conn.close()
         return redirect(url_for('dashboard'))
