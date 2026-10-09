@@ -5,7 +5,7 @@ from flask import Flask, render_template, request, redirect, url_for, session
 DB_PATH = '/tmp/database.db' if os.environ.get('VERCEL') else 'database.db'
 
 app = Flask(__name__, template_folder='../templates', static_folder='../static')
-app.secret_key = 'ticketing_system_secret_key_vercel_safe'
+app.secret_key = 'ticketing_system_secret_key_final_vercel'
 
 def init_db():
     try:
@@ -55,7 +55,7 @@ def init_db():
         conn.commit()
         conn.close()
     except Exception as e:
-        print(f"Database initialization error: {e}")
+        print(f"DB Error: {e}")
 
 init_db()
 
@@ -83,7 +83,7 @@ def login():
             else:
                 error = "Invalid username, password, or role selection."
         except Exception as e:
-            error = f"Database error: {e}"
+            error = f"Error: {e}"
             
     return render_template('login.html', error=error)
 
@@ -227,5 +227,3 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
-
-    
