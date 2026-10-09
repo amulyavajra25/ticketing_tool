@@ -5,7 +5,7 @@ from flask import Flask, render_template, request, redirect, url_for, session
 DB_PATH = '/tmp/database.db' if os.environ.get('VERCEL') else 'database.db'
 
 app = Flask(__name__, template_folder='../templates', static_folder='../static')
-app.secret_key = 'ticketing_system_secret_key_final_vercel'
+app.secret_key = 'ticketing_system_secret_key_admin_ticket'
 
 def init_db():
     try:
@@ -146,6 +146,10 @@ def dashboard():
 def create_ticket():
     if 'username' not in session:
         return redirect(url_for('login'))
+        
+    # Allow both Client and Administrator roles to create tickets
+    if session.get('role') not in ['CLIENT', 'ADMINISTRATOR']:
+        return redirect(url_for('dashboard'))
         
     title = request.form.get('title')
     category = request.form.get('category', 'Incident')
