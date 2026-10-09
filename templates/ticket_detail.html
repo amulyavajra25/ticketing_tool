@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Ticket Chat - TK-{{ ticket.id }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white p-6 font-sans">
+    <div class="max-w-4xl mx-auto bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700">
+        
+        <div class="border-b border-gray-700 pb-4 mb-6 flex justify-between items-center">
+            <div>
+                <h1 class="text-2xl font-bold">{{ ticket.title }}</h1>
+                <p class="text-sm text-gray-400 mt-1">
+                    Category: <span class="text-white">{{ ticket.category }}</span> &bull; 
+                    Priority: <span class="text-amber-400">{{ ticket.priority }}</span> &bull; 
+                    Status: <span class="text-blue-400 font-semibold">{{ ticket.status }}</span> &bull; 
+                    Raised By: <span class="text-gray-300">{{ ticket.raised_by }}</span>
+                </p>
+            </div>
+            <div>
+                <a href="/dashboard" class="text-sm bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded text-white">&larr; Back to Dashboard</a>
+            </div>
+        </div>
+
+        <div class="space-y-4 mb-6 h-[420px] overflow-y-auto p-4 bg-gray-900 rounded border border-gray-700">
+            {% if messages %}
+                {% for msg in messages %}
+                    <div class="flex flex-col {% if msg.role == 'EMPLOYEE' %}items-start{% else %}items-end{% endif %}">
+                        <div class="max-w-xl p-3 rounded-lg shadow {% if msg.role == 'EMPLOYEE' %}bg-amber-950/60 border border-amber-800/40 text-amber-100{% else %}bg-blue-950/60 border border-blue-800/40 text-blue-100{% endif %}">
+                            <div class="text-xs font-semibold text-gray-400 mb-1 flex justify-between gap-4">
+                                <span>{{ msg.sender }} <span class="text-gray-500">({{ msg.role }})</span></span>
+                                <span class="text-[10px] text-gray-500">{{ msg.timestamp }}</span>
+                            </div>
+                            <p class="text-sm whitespace-pre-wrap">{{ msg.message }}</p>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p class="text-center text-gray-500 py-24">No notes or updates yet. Type your work progress or findings below!</p>
+            {% endif %}
+        </div>
+
+        <form action="/ticket/{{ ticket.id }}" method="POST" class="flex flex-col gap-3 bg-gray-900/40 p-4 rounded border border-gray-700">
+            <div class="flex flex-wrap gap-4 items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <label class="text-xs text-gray-300 font-medium">Update Status:</label>
+                    <select name="status" class="bg-gray-700 text-white rounded px-2 py-1 text-xs border border-gray-600 focus:outline-none">
+                        <option value="OPEN" {% if ticket.status == 'OPEN' %}selected{% endif %} {% if role == 'EMPLOYEE' %}disabled{% endif %}>Open</option>
+                        <option value="ASSIGNED" {% if ticket.status == 'ASSIGNED' %}selected{% endif %}>Assigned</option>
+                        <option value="WORK_IN_PROGRESS" {% if ticket.status == 'WORK_IN_PROGRESS' %}selected{% endif %}>Work In Progress</option>
+                        <option value="RESOLVED" {% if ticket.status == 'RESOLVED' %}selected{% endif %}>Resolved</option>
+                        <option value="CLOSED" {% if ticket.status == 'CLOSED' %}selected{% endif %} {% if role == 'EMPLOYEE' %}disabled{% endif %}>Closed</option>
+                    </select>
+                </div>
+                {% if role == 'EMPLOYEE' %}
+                    <span class="text-[11px] text-amber-400">*Note: Opening/Closing restricted to Admin & Client</span>
+                {% endif %}
+            </div>
+            
+            <div class="flex gap-2">
+                <textarea name="message" rows="2" placeholder="Write description, work findings, or resolution update..." required
+                          class="flex-1 bg-gray-800 border border-gray-700 rounded p-2 text-white text-sm focus:outline-none focus:border-blue-500"></textarea>
+                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-6 rounded font-semibold text-sm transition shadow">
+                    Send Update
+                </button>
+            </div>
+        </form>
+
+    </div>
+</body>
+</html>
+

@@ -2,43 +2,46 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Register - Helpdesk</title>
+    <title>Register - Ticketing Tool</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-950 text-gray-100 flex items-center justify-center h-screen">
-    <div class="bg-gray-900 border border-gray-800 p-8 rounded-lg shadow-xl w-96">
-        <h2 class="text-2xl font-bold text-blue-500 mb-6 text-center">Create Account</h2>
+<body class="bg-gray-950 text-white flex items-center justify-center min-h-screen">
+    <div class="bg-gray-900 border border-gray-800 p-8 rounded-xl shadow-lg w-full max-w-md">
+        <h1 class="text-2xl font-bold text-blue-400 mb-2 text-center">Create Account</h1>
+        <p class="text-xs text-gray-400 text-center mb-6">Register a new client, employee, or administrator account</p>
         
         {% if error %}
-            <p class="bg-red-500/20 border border-red-500 text-red-300 p-2 rounded mb-4 text-sm">{{ error }}</p>
+        <div class="bg-red-950 border border-red-800 text-red-200 text-xs p-3 rounded mb-4">
+            {{ error }}
+        </div>
         {% endif %}
 
-        <form method="POST" class="space-y-4">
+        <form action="/register" method="POST" class="space-y-4">
             <div>
-                <label class="block text-sm text-gray-400 mb-1">Username</label>
-                <input type="text" name="username" required class="w-full bg-gray-950 border border-gray-700 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                <label class="block text-xs text-gray-400 mb-1">Username (e.g., Client 1, Amulya, Admin)</label>
+                <input type="text" name="username" placeholder="Choose a username" required
+                       class="w-full bg-gray-800 border border-gray-700 rounded p-2.5 text-sm text-white focus:outline-none focus:border-blue-500">
             </div>
             <div>
-                <label class="block text-sm text-gray-400 mb-1">Email Address</label>
-                <input type="email" name="email" required class="w-full bg-gray-950 border border-gray-700 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                <label class="block text-xs text-gray-400 mb-1">Password</label>
+                <input type="password" name="password" placeholder="Choose a secure password" required
+                       class="w-full bg-gray-800 border border-gray-700 rounded p-2.5 text-sm text-white focus:outline-none focus:border-blue-500">
             </div>
             <div>
-                <label class="block text-sm text-gray-400 mb-1">Password</label>
-                <input type="password" name="password" required class="w-full bg-gray-950 border border-gray-700 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
-            </div>
-            <div>
-                <label class="block text-sm text-gray-400 mb-1">User Role</label>
-                <select name="role" class="w-full bg-gray-950 border border-gray-700 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                <label class="block text-xs text-gray-400 mb-1">Select Role</label>
+                <select name="role" class="w-full bg-gray-800 border border-gray-700 rounded p-2.5 text-sm text-white focus:outline-none focus:border-blue-500">
                     <option value="CLIENT">Client</option>
                     <option value="EMPLOYEE">Employee</option>
-                    <option value="ADMIN">Administrator</option>
+                    <option value="ADMINISTRATOR">Administrator</option>
                 </select>
             </div>
-            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2 rounded transition">Register</button>
+            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded text-sm font-semibold transition shadow mt-2">
+                Register Account
+            </button>
         </form>
 
-        <p class="mt-4 text-center text-sm text-gray-400">
-            Already have an account? <a href="{{ url_for('login') }}" class="text-blue-400 hover:underline">Login</a>
+        <p class="text-xs text-gray-400 text-center mt-4">
+            Already have an account? <a href="/" class="text-blue-400 hover:underline">Login here</a>
         </p>
     </div>
 </body>

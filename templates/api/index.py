@@ -1,13 +1,15 @@
-from flask import Flask, render_template, request, redirect, url_for, session
+import os
 import sqlite3
+from flask import Flask, render_template, request, redirect, url_for, session
 
-app = Flask(__name__)
-app.secret_key = 'ticketing_system_secret_key_v6'
+DB_PATH = '/tmp/database.db' if os.environ.get('VERCEL') else 'database.db'
+
+app = Flask(__name__, template_folder='../templates', static_folder='../static')
+app.secret_key = 'ticketing_system_secret_key_vercel'
 
 def init_db():
-    conn = sqlite3.connect('database.db')
+    conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -16,7 +18,6 @@ def init_db():
             role TEXT
         )
     ''')
-    
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS tickets (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -40,19 +41,16 @@ def init_db():
         )
     ''')
     
-    # Pre-populate demo accounts if they don't exist yet
     demo_users = [
         ('Client One', '1234', 'CLIENT'),
         ('Amulya', '1234', 'EMPLOYEE'),
         ('Admin', '1234', 'ADMINISTRATOR')
     ]
-    
     for user, pwd, role in demo_users:
         try:
             cursor.execute('INSERT INTO users (username, password, role) VALUES (?, ?, ?)', (user, pwd, role))
         except sqlite3.IntegrityError:
-            pass # Already exists
-            
+            pass
     conn.commit()
     conn.close()
 
@@ -63,15 +61,13 @@ def login():
     error = None
     if request.method == 'POST':
         session.clear()
-        
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '').strip()
         role = request.form.get('role', 'CLIENT').upper()
         
-        conn = sqlite3.connect('database.db')
+        conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
-        
         user = cursor.execute('SELECT * FROM users WHERE username = ? AND password = ? AND role = ?', 
                               (username, password, role)).fetchone()
         conn.close()
@@ -82,7 +78,6 @@ def login():
             return redirect(url_for('dashboard'))
         else:
             error = "Invalid username, password, or role selection. Please try again."
-            
     return render_template('login.html', error=error)
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -97,7 +92,7 @@ def register():
             error = "Username and password are required."
         else:
             try:
-                conn = sqlite3.connect('database.db')
+                conn = sqlite3.connect(DB_PATH)
                 cursor = conn.cursor()
                 cursor.execute('INSERT INTO users (username, password, role) VALUES (?, ?, ?)', 
                                (username, password, role))
@@ -106,7 +101,6 @@ def register():
                 return redirect(url_for('login'))
             except sqlite3.IntegrityError:
                 error = "Username already exists. Choose a different username or login."
-                
     return render_template('register.html', error=error)
 
 @app.route('/dashboard')
@@ -117,19 +111,19 @@ def dashboard():
     username = session.get('username')
     role = session.get('role', 'CLIENT').upper()
     
-    conn = sqlite3.connect('database.db')
+    conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
     employee_rows = cursor.execute("SELECT username FROM users WHERE role = 'EMPLOYEE'").fetchall()
     employees = [emp['username'] for emp in employee_rows]
-    
     if not employees:
         employees = ['Amulya', 'TestEmployee']
     
     if role == 'ADMINISTRATOR':
         tickets = cursor.execute('SELECT * FROM tickets').fetchall()
     elif role == 'EMPLOYEE':
+        # Employees see tickets assigned to them or unassigned/open ones to review
         tickets = cursor.execute('''
             SELECT * FROM tickets 
             WHERE assigned_employee = ? OR assigned_employee = '' OR status = 'OPEN'
@@ -138,7 +132,6 @@ def dashboard():
         tickets = cursor.execute('SELECT * FROM tickets WHERE raised_by = ?', (username,)).fetchall()
         
     conn.close()
-    
     return render_template('dashboard.html', tickets=tickets, username=username, role=role, employees=employees)
 
 @app.route('/create_ticket', methods=['POST'])
@@ -154,7 +147,7 @@ def create_ticket():
     assigned_employee = '' 
     
     if title:
-        conn = sqlite3.connect('database.db')
+        conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         cursor.execute('''
             INSERT INTO tickets (title, category, priority, status, raised_by, assigned_employee)
@@ -162,7 +155,6 @@ def create_ticket():
         ''', (title, category, priority, status, raised_by, assigned_employee))
         conn.commit()
         conn.close()
-    
     return redirect(url_for('dashboard'))
 
 @app.route('/assign_ticket/<int:ticket_id>', methods=['POST'])
@@ -171,7 +163,7 @@ def assign_ticket(ticket_id):
         return redirect(url_for('dashboard'))
         
     assigned_employee = request.form.get('assigned_employee')
-    conn = sqlite3.connect('database.db')
+    conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("UPDATE tickets SET assigned_employee = ?, status = 'ASSIGNED' WHERE id = ?", (assigned_employee, ticket_id))
     conn.commit()
@@ -183,33 +175,43 @@ def ticket_detail(ticket_id):
     if 'username' not in session:
         return redirect(url_for('login'))
         
-    conn = sqlite3.connect('database.db')
+    username = session.get('username')
+    role = session.get('role')
+    
+    conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
+
+    ticket = cursor.execute('SELECT * FROM tickets WHERE id = ?', (ticket_id,)).fetchone()
+    
+    if not ticket:
+        conn.close()
+        return redirect(url_for('dashboard'))
+
+    # Security check: If user is an EMPLOYEE, they can only view/chat if assigned to them!
+    if role == 'EMPLOYEE' and ticket['assigned_employee'] != username:
+        conn.close()
+        return redirect(url_for('dashboard'))
 
     if request.method == 'POST':
         message = request.form.get('message')
         new_status = request.form.get('status')
-        sender = session.get('username')
-        role = session.get('role')
         
         if new_status in ['OPEN', 'CLOSED'] and role not in ['ADMINISTRATOR', 'CLIENT']:
             new_status = None 
 
         if message:
-            cursor.execute('INSERT INTO ticket_messages (ticket_id, sender, role, message) VALUES (?, ?, ?, ?)', (ticket_id, sender, role, message))
-            
+            cursor.execute('INSERT INTO ticket_messages (ticket_id, sender, role, message) VALUES (?, ?, ?, ?)', (ticket_id, username, role, message))
         if new_status:
             cursor.execute('UPDATE tickets SET status = ? WHERE id = ?', (new_status, ticket_id))
             
         conn.commit()
         return redirect(url_for('ticket_detail', ticket_id=ticket_id))
 
-    ticket = cursor.execute('SELECT * FROM tickets WHERE id = ?', (ticket_id,)).fetchone()
     messages = cursor.execute('SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY timestamp ASC', (ticket_id,)).fetchall()
     conn.close()
 
-    return render_template('ticket_detail.html', ticket=ticket, messages=messages, username=session.get('username'), role=session.get('role'))
+    return render_template('ticket_detail.html', ticket=ticket, messages=messages, username=username, role=role)
 
 @app.route('/logout')
 def logout():
